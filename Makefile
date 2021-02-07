@@ -2,8 +2,12 @@ TARGET = blink
 
 SOURCES = main.c startup.c system/system_stm32l0xx.c
 
-OUTDIR = out
-OBJS = $(patsubst %.c,$(OUTDIR)/%.o,$(SOURCES))
+OBJDIR := obj
+OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(SOURCES))
+
+DEPDIR := $(OBJDIR)
+DEPS := $(patsubst %.c,$(DEPDIR)/%.d,$(SOURCES))
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 INCLUDES = -Isystem/include -ICMSIS_5/CMSIS/Core/Include
 LINKER_SCRIPT = stm32l011k4t6.ld
@@ -37,13 +41,20 @@ $(TARGET).lss: $(TARGET).elf
 $(TARGET).elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CC) $(LDFLAGS) $(OBJS) -o $@
 
-$(OUTDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(DEPDIR)/%.d | $(DEPDIR)
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+$(DEPDIR):
+	@mkdir -p $(DEPDIR)
+
+$(DEPS):
 
 .PHONY: clean
 clean:
-	rm -r $(OUTDIR)
+	rm -r $(OBJDIR)
 	rm $(TARGET).elf
 	rm $(TARGET).hex
 	rm $(TARGET).bin
+
+include $(wildcard $(DEPS))
